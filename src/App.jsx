@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { IoMdSend } from 'react-icons/io'
-import { FaStop } from 'react-icons/fa'
+import { GiFinishLine } from 'react-icons/gi'
 import { FaUndo } from 'react-icons/fa'
 import OpenAI from 'openai' // Assuming you have an OpenAI package installed
 import './App.css'
@@ -8,6 +8,7 @@ import './App.css'
 const API_KEY = process.env.REACT_APP_OPENAI_API_KEY
 
 const BOTS = ['dipper', 'mabel']
+const LAST_MESSAGE = 'Make this next message the last one. Include a conclusion or summary of the conversation, and bring it to a satisfying ending.'
 
 const App = () => {
   const [topic, setTopic] = useState('')
@@ -22,7 +23,9 @@ const App = () => {
         try {
           const openai = new OpenAI({ apiKey: API_KEY, dangerouslyAllowBrowser: true })
 
-          const responder = BOTS.find(bot => bot !== conversation[conversation.length - 1].role) || BOTS[0]
+          let previousMessage = conversation[conversation.length - 1]
+          if (previousMessage.role === 'system') previousMessage = conversation[conversation.length - 2]
+          const responder = previousMessage ? BOTS.find(bot => bot !== previousMessage.role) : BOTS[0]
           const messages = conversation.map(message => ({
             role: message.role === 'system' ? 'system' : (message.role === responder ? 'assistant' : 'user'),
             content: message.content
@@ -33,19 +36,22 @@ const App = () => {
           let lastMessageContent = ''
           for await (const chunk of stream) {
             const delta = chunk.choices[0] ? (chunk.choices[0].delta ? chunk.choices[0].delta.content : undefined) : undefined
-            if (first || delta) {
-              first = false
-              lastMessageContent += delta
-              setLastMessage({ role: responder, content: lastMessageContent })
-              if (lastMessageRef.current) {
-                lastMessageRef.current.scrollIntoView({ behavior: 'smooth' })
-              }
-            } else {
-              break
+            if (!first && !delta) break
+            
+            first = false
+            lastMessageContent += delta
+            setLastMessage({ role: responder, content: lastMessageContent })
+            if (lastMessageRef.current) {
+              lastMessageRef.current.scrollIntoView({ behavior: 'smooth' })
             }
           }
+
           if (lastMessageContent) {
-            setConversation(prevConversation => [...prevConversation, { role: responder, content: lastMessageContent }])
+            const newMessages = [{ role: responder, content: lastMessageContent }]
+            if (shouldStopConversation) {
+              newMessages.push({ role: 'system', content: LAST_MESSAGE })
+            }
+            setConversation(prevConversation => [...prevConversation, ...newMessages])
             setLastMessage(undefined)
           }
         } catch (error) {
@@ -53,7 +59,8 @@ const App = () => {
         }
       }
   
-      if (!shouldStopConversation) {
+      console.log(Array.from(conversation), shouldStopConversation, lastMessage)
+      if (!shouldStopConversation || conversation.every((msg, index) => msg.content !== LAST_MESSAGE || index === conversation.length - 1)) {
         sendMessageToOpenAI(conversation)
       }
     }
@@ -101,7 +108,7 @@ Very Important: don't talk about being an AI or about the conversation itself! I
           </div>
         ) : (
           <div className='bottom'>
-            <button onClick={stopConversation}><FaStop /> Stop Conversation</button>
+            <button onClick={stopConversation}><GiFinishLine /> Wrap it up</button>
           </div>
         )
       ) : (
