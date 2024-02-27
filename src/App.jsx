@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react'
+import { IoMdSend } from 'react-icons/io'
+import { FaStop } from 'react-icons/fa'
+import { FaUndo } from 'react-icons/fa'
 import OpenAI from 'openai' // Assuming you have an OpenAI package installed
 import './App.css'
 
@@ -39,9 +42,11 @@ const App = () => {
 
   const systemCommand = topic => {
     return `You are a conversationalist.
-You will discuess ${topic}.
+You will discuess ${topic} with the user.
 Please present questions and respond to the answers as if you were having a conversation with a human.
-Keep asking follow-up questions to keep the conversation going.`
+Keep asking follow-up questions to keep the conversation going until it reaches a natrual resolution.
+Keep your answers short, maximum 50 words, and use the user's answers to guide the conversation.
+Don't talk about being an AI or about the conversation itself.`
   }
 
   const startConversation = e => {
@@ -54,29 +59,42 @@ Keep asking follow-up questions to keep the conversation going.`
     setShouldStopConversation(true)
   }
 
+  const clear = () => {
+    setConversation([])
+    setShouldStopConversation(false)
+  }
+
   return (
-    <div className="openai-form">
-      <div className="conversation">
+    <div className='openai-form'>
+      <div className='conversation'>
         {conversation.map((msg, index) => (
           <div key={index} className={`message ${msg.role}`}>
             {msg.content}
           </div>
         ))}
       </div>
-      {conversation.length > 0 && !stopConversation ? (
-        <button onClick={stopConversation}>Stop Conversation</button>
+      {conversation.length > 0 ? (
+        shouldStopConversation ? (
+          <div className='bottom'>
+            <button onClick={clear}><FaUndo /> Reset</button>
+          </div>
+        ) : (
+          <div className='bottom'>
+            <button onClick={stopConversation}><FaStop /> Stop Conversation</button>
+          </div>
+        )
       ) : (
         <form onSubmit={startConversation}>
-          <label htmlFor="topic">Please Discuss:</label>
+          <label htmlFor='topic'>Discuss</label>
           <input
-            type="text"
-            className="topic-input"
+            type='text'
+            className='topic-input'
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            label="topic"
-            placeholder="the effect of climate change on the economy"
+            label='topic'
+            placeholder='the effect of chocolate consumption on hadnwriting speed'
           />
-          <button type="submit" className="send-button">Send</button>
+          <button type='submit' className='send-button'><IoMdSend /> Send</button>
         </form>
       )}
     </div>
