@@ -1,0 +1,50 @@
+html, body, #root, .openai-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+}
+
+.conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  height: calc(100% - 2rem);
+  overflow-y: auto;
+}
+
+.message.mabel {
+  align-self: flex-end;
+  background-color: #DCF8C6;
+  border-radius: 16px;
+  padding: 8px 12px;
+  max-width: 70%;
+}
+
+.message.dipper {
+  align-self: flex-start;
+  background-color: #cacaf6;
+  border-radius: 16px;
+  padding: 8px 12px;
+  max-width: 70%;
+}
+
+.message.system {
+  display: none;
+}
+
+.send-button {
+  width: 60px;
+  height: 36px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  margin-left: 10px;
+}
