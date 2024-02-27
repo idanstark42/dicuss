@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { IoMdSend } from 'react-icons/io'
 import { FaStop } from 'react-icons/fa'
 import { FaUndo } from 'react-icons/fa'
@@ -13,9 +13,11 @@ const App = () => {
   const [topic, setTopic] = useState('')
   const [conversation, setConversation] = useState([])
   const [shouldStopConversation, setShouldStopConversation] = useState(false)
+  const [lastMessage, setLastMessage] = useState()
+  const lastMessageRef = useRef()
 
   useEffect(() => {
-    if (conversation.length > 0) {
+    if (conversation.length > 0 && !lastMessage) {
       const sendMessageToOpenAI = async () => {
         try {
           const openai = new OpenAI({ apiKey: API_KEY, dangerouslyAllowBrowser: true })
@@ -26,9 +28,26 @@ const App = () => {
             content: message.content
           }))
           
-          const response = await openai.chat.completions.create({ model: 'gpt-4', messages })
-          const botResponse = response.choices[0].message.content.trim()
-          setConversation(prevConversation => [...prevConversation, { role: responder, content: botResponse }])
+          const stream = await openai.chat.completions.create({ model: 'gpt-4', messages, stream: true })
+          let first = true
+          let lastMessageContent = ''
+          for await (const chunk of stream) {
+            const delta = chunk.choices[0] ? (chunk.choices[0].delta ? chunk.choices[0].delta.content : undefined) : undefined
+            if (first || delta) {
+              first = false
+              lastMessageContent += delta
+              setLastMessage({ role: responder, content: lastMessageContent })
+              if (lastMessageRef.current) {
+                lastMessageRef.current.scrollIntoView({ behavior: 'smooth' })
+              }
+            } else {
+              break
+            }
+          }
+          if (lastMessageContent) {
+            setConversation(prevConversation => [...prevConversation, { role: responder, content: lastMessageContent }])
+            setLastMessage(undefined)
+          }
         } catch (error) {
           console.error('Error:', error)
         }
@@ -38,7 +57,7 @@ const App = () => {
         sendMessageToOpenAI(conversation)
       }
     }
-  }, [conversation, shouldStopConversation])
+  }, [conversation, shouldStopConversation, lastMessage])
 
   const systemCommand = topic => {
     return `You are a conversationalist.
@@ -46,7 +65,7 @@ You will discuess ${topic} with the user.
 Please present questions and respond to the answers as if you were having a conversation with a human.
 Keep asking follow-up questions to keep the conversation going until it reaches a natrual resolution.
 Keep your answers short, maximum 50 words, and use the user's answers to guide the conversation.
-Don't talk about being an AI or about the conversation itself.`
+Very Important: don't talk about being an AI or about the conversation itself! If you are asked something you can't respond to, like an opinion, just take an opposition to the user's opinion, or just make something up.`
   }
 
   const startConversation = e => {
@@ -62,6 +81,7 @@ Don't talk about being an AI or about the conversation itself.`
   const clear = () => {
     setConversation([])
     setShouldStopConversation(false)
+    setLastMessage(undefined)
   }
 
   return (
@@ -72,6 +92,7 @@ Don't talk about being an AI or about the conversation itself.`
             {msg.content}
           </div>
         ))}
+        {lastMessage ? <div ref={lastMessageRef} className={`message ${lastMessage.role}`}>{lastMessage.content}</div> : ''}
       </div>
       {conversation.length > 0 ? (
         shouldStopConversation ? (
